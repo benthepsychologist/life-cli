@@ -1,0 +1,11 @@
+version: '0.1'
+paths:
+  specs: .specwright/specs
+  aips: .specwright/aips
+repo:
+  default_branch: main
+user:
+  default_owner: null
+current:
+  spec: .specwright/specs/life-cli-initial-spec.md
+  aip: /home/user/life-cli/.specwright/aips/life-cli-initial-spec.yaml

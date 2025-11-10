@@ -1,0 +1,166 @@
+# Life-CLI Example Configuration
+#
+# This file demonstrates the key features of life-cli configuration.
+# Copy to ~/life.yml or ./life.yml and customize for your workflows.
+
+# Workspace: Base directory for your data files
+workspace: ~/life-cockpit
+
+# SYNC: Pull data from external sources
+sync:
+  # Simple sync task
+  contacts:
+    command: >
+      my-crm-tool export contacts
+        --format json
+        --output {output}
+    output: ~/life-cockpit/data/contacts.json
+    description: Export all contacts from CRM
+
+  # Incremental sync with state tracking (Step 3 feature)
+  sessions:
+    command: >
+      dataverse-tool query
+        --entity sessions
+        --select id,name,start_time,status
+        --order "modified_on asc"
+        --output {output}
+        {extra_args}
+    output: ~/life-cockpit/data/sessions.jsonl
+    incremental_field: modified_on
+    state_file: ~/life-cockpit/.sync_state.json
+    id_field: session_id
+    description: Incrementally sync sessions since last run
+
+  # Sync with date range helpers (Step 4 feature)
+  calendar:
+    command: >
+      calendar-tool export
+        --from {from_date}
+        --to {to_date}
+        --output {output}
+    output: ~/life-cockpit/data/calendar.json
+    date_range: 7d
+    description: Sync calendar events from last 7 days
+
+  # Multi-command sync (Step 4 feature)
+  emails:
+    commands:
+      - msg search --mailbox primary --since 7d --output {output}/primary.jsonl
+      - msg search --mailbox work --since 7d --output {output}/work.jsonl
+      - msg search --mailbox archive --since 7d --output {output}/archive.jsonl
+    output: ~/life-cockpit/data/messages
+    description: Sync emails from multiple mailboxes
+
+# MERGE: Combine and transform datasets
+merge:
+  # Nested merge tasks: category > task
+  clients:
+    # Merge sessions data into clients
+    sessions:
+      command: >
+        jq -s '
+          .[0] as $clients |
+          .[1] as $sessions |
+          $clients | map(
+            . + {
+              session_count: ($sessions | map(select(.client_id == .id)) | length)
+            }
+          )
+        ' {clients_file} {sessions_file}
+      clients_file: ~/life-cockpit/data/clients.json
+      sessions_file: ~/life-cockpit/data/sessions.jsonl
+      output: ~/life-cockpit/data/clients_enriched.json
+
+    # Merge calendar events into clients
+    calendar:
+      command: >
+        jq -s '
+          .[0] as $clients |
+          .[1] as $calendar |
+          $clients | map(
+            . as $client |
+            . + {
+              upcoming_events: ($calendar | map(select(.attendee_email == $client.email)))
+            }
+          )
+        ' {clients_file} {calendar_file}
+      clients_file: ~/life-cockpit/data/clients_enriched.json
+      calendar_file: ~/life-cockpit/data/calendar.json
+      output: ~/life-cockpit/data/clients_with_calendar.json
+
+    # Final merge step
+    finalize:
+      command: >
+        jq 'map(
+          . + {
+            last_contact: (
+              [.last_email, .last_session, .last_event]
+              | map(select(. != null))
+              | max
+            ),
+            is_active: (
+              (now - (.last_contact | fromdateiso8601)) / 86400 <= 30
+            )
+          }
+        )' {clients_file}
+      clients_file: ~/life-cockpit/data/clients_with_calendar.json
+      output: ~/life-cockpit/data/clients_final.json
+
+# PROCESS: Transform and analyze data
+process:
+  # Score assessment questionnaires
+  assessments:
+    command: >
+      assessment-tool score
+        --input {input}
+        --registry {registry}
+        --output {output}
+        --verbose
+    input: ~/life-cockpit/data/assessments/raw
+    registry: ~/life-cockpit/config/assessment-registry.json
+    output: ~/life-cockpit/data/assessments/scored
+    description: Score assessment responses using registry
+
+  # Generate PDF reports
+  reports:
+    command: >
+      report-generator create
+        --template monthly-summary
+        --data {data_file}
+        --output {output}
+    data_file: ~/life-cockpit/data/clients_final.json
+    output: ~/life-cockpit/reports/monthly-summary.pdf
+    description: Generate monthly summary report
+
+# STATUS: Check data status and generate metrics
+status:
+  # Count pending items
+  pending_tasks:
+    command: >
+      bash -c 'jq "length" {data_file}'
+    data_file: ~/life-cockpit/data/tasks_pending.json
+    output: ~/life-cockpit/status/pending_count.txt
+    append_template: "- Pending tasks: {result} ({timestamp})"
+    mode: append
+
+  # Check data freshness
+  data_freshness:
+    command: >
+      bash -c '
+        CONTACTS=$(stat -c %Y ~/life-cockpit/data/contacts.json 2>/dev/null || echo 0)
+        NOW=$(date +%s)
+        AGE=$(( (NOW - CONTACTS) / 3600 ))
+        echo "Contacts data is $AGE hours old"
+      '
+    description: Check how old the contacts data is
+
+  # Pipeline health check
+  health:
+    commands:
+      - echo "=== Data Pipeline Health ==="
+      - echo "Contacts: $(jq length ~/life-cockpit/data/contacts.json)"
+      - echo "Sessions: $(wc -l < ~/life-cockpit/data/sessions.jsonl)"
+      - echo "Calendar: $(jq length ~/life-cockpit/data/calendar.json)"
+      - echo "Last sync: $(jq -r '.sessions.modified_on' ~/life-cockpit/.sync_state.json)"
+    description: Overall pipeline health check

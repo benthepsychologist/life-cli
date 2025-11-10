@@ -1,0 +1,21 @@
+workspace: ~/test-workspace
+
+sync:
+  test-task:
+    command: echo "Test sync command"
+    output: ~/test-output.json
+
+merge:
+  test-category:
+    test-task:
+      command: echo "Test merge command"
+      output: ~/test-merged.json
+
+process:
+  test-process:
+    command: echo "Test process command"
+    output: ~/test-processed.json
+
+status:
+  test-status:
+    command: echo "Test status command"
