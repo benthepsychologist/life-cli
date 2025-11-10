@@ -1,0 +1,14 @@
+workspace: ~/test-workspace
+
+sync:
+  # Test nested variables
+  nested-vars:
+    command: echo "Output: {output}, Field: {incremental_field}" > {output}
+    output: ~/test-workspace/nested.txt
+    incremental_field: modified_on
+    custom_var: "my-value"
+
+  # Test missing variables
+  missing-vars:
+    command: echo "Name: {name}, Missing: {does_not_exist}" > {output}
+    output: ~/test-workspace/missing.txt

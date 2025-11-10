@@ -5,17 +5,15 @@ Copyright 2025 Ben Mensi
 Licensed under the Apache License, Version 2.0
 """
 
-import sys
 import logging
 from typing import Optional
-from pathlib import Path
 
 import typer
 import yaml
 
 from life import __version__
+from life.commands import config, merge, process, status, sync
 from life.config import load_config
-from life.commands import sync, merge, process, status
 
 # Initialize main app
 app = typer.Typer(
@@ -29,6 +27,7 @@ app.add_typer(sync.app, name="sync")
 app.add_typer(merge.app, name="merge")
 app.add_typer(process.app, name="process")
 app.add_typer(status.app, name="status")
+app.add_typer(config.app, name="config")
 
 # Global state for context
 state = {"config": {}, "dry_run": False, "verbose": False}

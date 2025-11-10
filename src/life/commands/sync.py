@@ -8,12 +8,13 @@ Licensed under the Apache License, Version 2.0
 """
 
 import logging
-import typer
-from typing import Optional
 from pathlib import Path
+from typing import Optional
 
-from life.state import StateManager
+import typer
+
 from life.runner import CommandRunner, expand_path
+from life.state import StateManager
 
 app = typer.Typer(help="Sync data from external sources")
 
@@ -56,20 +57,32 @@ def sync_callback(
 
     # Extract task configuration
     command = task_config.get("command")
+    commands = task_config.get("commands")
     output = task_config.get("output")
     incremental_field = task_config.get("incremental_field")
     state_file = task_config.get("state_file")
-    id_field = task_config.get("id_field")
+    date_range = task_config.get("date_range")
 
-    if not command:
-        typer.echo(f"Error: No command defined for task '{task}'", err=True)
+    if not command and not commands:
+        typer.echo(f"Error: No command or commands defined for task '{task}'", err=True)
         raise typer.Exit(1)
 
     # Initialize command runner
     runner = CommandRunner(dry_run=dry_run, verbose=verbose)
 
-    # Build variable dictionary
-    variables = {"output": str(expand_path(output)) if output else ""}
+    # Build variable dictionary with explicit allowlist
+    # Only these fields are available for substitution in commands
+    variables = {
+        "output": str(expand_path(output)) if output else "",
+        "workspace": config.get("workspace", str(Path.cwd())),
+    }
+
+    # Add date range variables if specified
+    if date_range:
+        from life.date_utils import get_date_variables
+        date_vars = get_date_variables(date_range)
+        variables.update(date_vars)
+        logger.info(f"Date range: {date_vars['from_date']} to {date_vars['to_date']}")
 
     # Handle incremental sync
     extra_args = ""
@@ -79,22 +92,37 @@ def sync_callback(
         last_value = state_manager.get_high_water_mark(task, incremental_field)
 
         if last_value:
-            # Build incremental filter argument
-            extra_args = f'--where "{incremental_field} gt {last_value}"'
+            # Build incremental filter argument using custom format or default
+            incremental_format = task_config.get(
+                "incremental_format",
+                '--where "{field} gt {value}"'  # Default OData format
+            )
+
+            # Substitute field and value in the format template
+            extra_args = incremental_format.replace("{field}", incremental_field)
+            extra_args = extra_args.replace("{value}", last_value)
             logger.info(f"Incremental sync since {incremental_field}={last_value}")
         else:
             logger.info(f"First sync for task '{task}' (no previous state)")
 
     variables["extra_args"] = extra_args
 
-    # Add all other fields from task_config as potential variables
-    for key, value in task_config.items():
-        if key not in ["command", "commands", "description"]:
-            variables[key] = str(value)
+    # Add user-defined variables from task config (if present)
+    # This allows users to define custom variables like {clients_file}, {api_key}, etc.
+    if "variables" in task_config:
+        user_vars = task_config["variables"]
+        if isinstance(user_vars, dict):
+            variables.update({k: str(v) for k, v in user_vars.items()})
 
-    # Execute command
+    # Execute command(s)
     typer.echo(f"Executing sync task: {task}")
-    result = runner.run(command, variables)
+    if commands:
+        # Multi-command execution
+        results = runner.run_multiple(commands, variables)
+        result = results[-1] if results else None
+    else:
+        # Single command execution
+        result = runner.run(command, variables)
 
     # Update state if this was an incremental sync
     if result and incremental_field and state_file and not full_refresh:

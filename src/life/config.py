@@ -7,10 +7,13 @@ Copyright 2025 Ben Mensi
 Licensed under the Apache License, Version 2.0
 """
 
-import os
+import logging
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+
 import yaml
+
+logger = logging.getLogger(__name__)
 
 
 def load_config(config_path: Optional[str] = None) -> Dict[str, Any]:
@@ -60,6 +63,14 @@ def load_config(config_path: Optional[str] = None) -> Dict[str, Any]:
     # Expand workspace path if present
     if "workspace" in config:
         config["workspace"] = str(Path(config["workspace"]).expanduser())
+
+    # Validate configuration
+    from life.validation import validate_config
+    issues = validate_config(config)
+    if issues:
+        logger.warning("Configuration validation warnings:")
+        for issue in issues:
+            logger.warning(f"  - {issue}")
 
     return config
 

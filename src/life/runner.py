@@ -7,10 +7,10 @@ Copyright 2025 Ben Mensi
 Licensed under the Apache License, Version 2.0
 """
 
-import subprocess
 import logging
-from typing import Dict, Optional
+import subprocess
 from pathlib import Path
+from typing import Dict, Optional
 
 
 class CommandRunner:
@@ -32,6 +32,8 @@ class CommandRunner:
         """
         Substitute variables in command string.
 
+        Supports escaping with double braces: {{text}} becomes {text}
+
         Args:
             command: Command template with {variable} placeholders
             variables: Dict of variable name -> value
@@ -42,19 +44,30 @@ class CommandRunner:
         Example:
             >>> substitute_variables("echo {name}", {"name": "Alice"})
             'echo Alice'
+            >>> substitute_variables("echo {{literal}}", {})
+            'echo {literal}'
         """
-        result = command
+        import re
+
+        # First, temporarily replace escaped braces {{...}} with a placeholder
+        escape_open = "\x00ESCAPED_OPEN\x00"
+        escape_close = "\x00ESCAPED_CLOSE\x00"
+        result = command.replace("{{", escape_open).replace("}}", escape_close)
+
+        # Substitute variables
         for key, value in variables.items():
             placeholder = f"{{{key}}}"
             if placeholder in result:
                 result = result.replace(placeholder, str(value))
                 self.logger.debug(f"Substituted {{{key}}} -> {value}")
 
-        # Check for unsubstituted variables
-        import re
+        # Check for unsubstituted variables (but ignore our placeholders)
         remaining = re.findall(r'\{(\w+)\}', result)
         if remaining:
             self.logger.warning(f"Unsubstituted variables: {remaining}")
+
+        # Restore escaped braces
+        result = result.replace(escape_open, "{").replace(escape_close, "}")
 
         return result
 
@@ -93,7 +106,11 @@ class CommandRunner:
             return None
 
         # Execute command
-        self.logger.info(f"Executing: {final_command[:100]}..." if len(final_command) > 100 else f"Executing: {final_command}")
+        if len(final_command) > 100:
+            log_msg = f"Executing: {final_command[:100]}..."
+        else:
+            log_msg = f"Executing: {final_command}"
+        self.logger.info(log_msg)
 
         try:
             result = subprocess.run(

@@ -61,6 +61,25 @@ life --version
 # Output: life-cli version 0.1.0
 ```
 
+### Shell Completion (Optional)
+
+Life-CLI supports shell completion for bash, zsh, and fish:
+
+```bash
+# For bash
+life --install-completion bash
+source ~/.bashrc
+
+# For zsh
+life --install-completion zsh
+source ~/.zshrc
+
+# For fish
+life --install-completion fish
+```
+
+After installation, you can use Tab to autocomplete commands and options.
+
 ## Quick Start
 
 ### 1. Create a config file

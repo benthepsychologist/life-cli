@@ -7,5 +7,5 @@ repo:
 user:
   default_owner: null
 current:
-  spec: .specwright/specs/life-cli-initial-spec.md
+  spec: .specwright/specs/config-management-spec.md
   aip: /home/user/life-cli/.specwright/aips/life-cli-initial-spec.yaml

@@ -18,6 +18,7 @@ sync:
     description: Export all contacts from CRM
 
   # Incremental sync with state tracking (Step 3 feature)
+  # Uses default OData format: --where "{field} gt {value}"
   sessions:
     command: >
       dataverse-tool query
@@ -31,6 +32,30 @@ sync:
     state_file: ~/life-cockpit/.sync_state.json
     id_field: session_id
     description: Incrementally sync sessions since last run
+
+  # Incremental sync with custom REST API format
+  transactions:
+    command: >
+      api-client get /transactions
+        --output {output}
+        {extra_args}
+    output: ~/life-cockpit/data/transactions.json
+    incremental_field: updated_at
+    incremental_format: "?since={value}"  # Custom REST API format
+    state_file: ~/life-cockpit/.sync_state.json
+    description: Sync transactions using REST API query params
+
+  # Custom variables example
+  api_data:
+    command: >
+      curl -H "Authorization: Bearer {api_key}"
+        "{api_url}/data?limit=100"
+        -o {output}
+    output: ~/life-cockpit/data/api_data.json
+    variables:
+      api_key: "your-secret-token"
+      api_url: "https://api.example.com/v1"
+    description: Sync data from API with custom variables
 
   # Sync with date range helpers (Step 4 feature)
   calendar:
@@ -68,8 +93,9 @@ merge:
             }
           )
         ' {clients_file} {sessions_file}
-      clients_file: ~/life-cockpit/data/clients.json
-      sessions_file: ~/life-cockpit/data/sessions.jsonl
+      variables:
+        clients_file: ~/life-cockpit/data/clients.json
+        sessions_file: ~/life-cockpit/data/sessions.jsonl
       output: ~/life-cockpit/data/clients_enriched.json
 
     # Merge calendar events into clients
@@ -85,8 +111,9 @@ merge:
             }
           )
         ' {clients_file} {calendar_file}
-      clients_file: ~/life-cockpit/data/clients_enriched.json
-      calendar_file: ~/life-cockpit/data/calendar.json
+      variables:
+        clients_file: ~/life-cockpit/data/clients_enriched.json
+        calendar_file: ~/life-cockpit/data/calendar.json
       output: ~/life-cockpit/data/clients_with_calendar.json
 
     # Final merge step
@@ -104,7 +131,8 @@ merge:
             )
           }
         )' {clients_file}
-      clients_file: ~/life-cockpit/data/clients_with_calendar.json
+      variables:
+        clients_file: ~/life-cockpit/data/clients_with_calendar.json
       output: ~/life-cockpit/data/clients_final.json
 
 # PROCESS: Transform and analyze data
