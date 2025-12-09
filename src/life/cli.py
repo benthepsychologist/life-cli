@@ -12,7 +12,7 @@ import typer
 import yaml
 
 from life import __version__
-from life.commands import config, init, merge, process, status, sync, today
+from life.commands import config, init, jobs, merge, process, run, status, sync, today
 from life.config import load_config
 
 # Initialize main app
@@ -30,6 +30,8 @@ app.add_typer(process.app, name="process")
 app.add_typer(status.app, name="status")
 app.add_typer(today.app, name="today")
 app.add_typer(config.app, name="config")
+app.add_typer(run.app, name="run")
+app.add_typer(jobs.app, name="jobs")
 
 # Global state for context
 state = {"config": {}, "dry_run": False, "verbose": False}
@@ -76,7 +78,9 @@ def main_callback(
 
     # Load config if a subcommand is being invoked
     # Some commands don't need config or create it (init, today)
+    # Job runner commands (run, jobs) can work with defaults if no config
     commands_without_config = ["version", "init"]
+    commands_with_optional_config = ["today", "run", "jobs"]
     if ctx.invoked_subcommand and ctx.invoked_subcommand not in commands_without_config:
         try:
             config = load_config(config_path)
@@ -89,10 +93,12 @@ def main_callback(
                 logging.debug(f"Dry run: {dry_run}")
 
         except FileNotFoundError as e:
-            # Some commands can work without config (today has defaults)
-            if ctx.invoked_subcommand == "today":
+            # Some commands can work without config (use defaults)
+            if ctx.invoked_subcommand in commands_with_optional_config:
                 if verbose:
-                    logging.debug("No config file found, using defaults for 'today' command")
+                    logging.debug(
+                        f"No config file found, using defaults for '{ctx.invoked_subcommand}' command"
+                    )
                 state["config"] = {}
                 state["dry_run"] = dry_run
                 state["verbose"] = verbose

@@ -34,7 +34,7 @@ updated: 2025-11-11T18:57:13.364422+00:00
 
 ## Plan
 
-### Step 1: Planning [G0: Plan Approval]
+### Step 1: Planning and File Analysis [G0: Plan Approval]
 
 **Prompt:**
 
@@ -73,7 +73,7 @@ pytest -q
 
 - `artifacts/code/quick-release-note.md`
 
-### Step 4: Testing [G2: Pre-Release]
+### Step 4: Testing and Validation [G2: Pre-Release]
 
 **Prompt:**
 

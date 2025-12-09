@@ -218,10 +218,142 @@ life today prompt "What were my main accomplishments?"
 life today prompt "What patterns do you see?" --context 3
 ```
 
+### `life run <job_id>`
+Execute a job defined in YAML files. Jobs are sequences of steps that call Python functions.
+
+```bash
+# Run a job
+life run query_contacts
+
+# Dry-run mode (preview without executing)
+life --dry-run run query_contacts
+
+# Pass variables to a job
+life run --var recipient=user@example.com send_test_email
+
+# Verbose output
+life --verbose run query_contacts
+```
+
+### `life jobs list`
+List all available jobs from YAML files in the jobs directory.
+
+```bash
+life jobs list
+
+# Show YAML parse errors if any
+life jobs list --errors
+```
+
+### `life jobs show <job_id>`
+Display the full definition of a job.
+
+```bash
+life jobs show query_contacts
+```
+
 ### Global Options
 - `--config PATH` / `-c PATH`: Path to config file (default: `~/life.yml` or `./life.yml`)
 - `--dry-run`: Show what would be executed without running commands
 - `--verbose` / `-v`: Enable verbose logging with timestamps
+
+## Job Runner
+
+The job runner provides a way to execute Python functions directly from YAML definitions, without subprocess overhead.
+
+### Setup
+
+1. Create a jobs directory:
+```bash
+mkdir -p ~/.life/jobs
+```
+
+2. Add job definitions (YAML files):
+```yaml
+# ~/.life/jobs/dataverse.yaml
+jobs:
+  query_contacts:
+    description: "Query contacts from Dataverse"
+    steps:
+      - name: query
+        call: life_jobs.dataverse.query
+        args:
+          account: lifeos
+          entity: contacts
+          select: [firstname, lastname, emailaddress1]
+          filter: "statecode eq 0"
+          output: ~/data/contacts.json
+```
+
+3. Run jobs:
+```bash
+life run query_contacts
+```
+
+### Job Definition Format
+
+Jobs are YAML files with sequences of steps. Each step calls a Python function via `call:`:
+
+```yaml
+jobs:
+  my_workflow:
+    description: "Multi-step workflow"
+    steps:
+      - name: step1
+        call: life_jobs.dataverse.query
+        args:
+          account: myaccount
+          entity: contacts
+          output: ~/data/contacts.json
+
+      - name: step2
+        call: life_jobs.graph.send_mail
+        args:
+          account: personal
+          to: ["{recipient}"]
+          subject: "Data ready"
+          body: "Contacts synced successfully"
+```
+
+### Variable Substitution
+
+Use `{variable}` placeholders in args, pass values with `--var`:
+
+```bash
+life run my_job --var recipient=user@example.com --var date=2025-01-01
+```
+
+### Available Step Functions
+
+**Dataverse (`life_jobs.dataverse`):**
+- `query` - Query entities and write to JSON
+- `get_single` - Fetch single record by ID
+- `create` - Create new record
+- `update` - Update existing record
+- `delete` - Delete record
+
+**Graph API (`life_jobs.graph`):**
+- `get_messages` - Fetch emails
+- `send_mail` - Send email
+- `me` - Get user profile
+- `get_calendar_events` - Fetch calendar events
+- `get_files` - List OneDrive files
+
+**Shell (`life_jobs.shell`):**
+- `run` - Execute shell command (transitional, prefer Python functions)
+
+### Event Logging
+
+All job executions are logged to `~/.life/events.jsonl` with correlation IDs for debugging.
+
+### Configuration
+
+Add to your config file:
+```yaml
+jobs:
+  dir: ~/.life/jobs          # Job definitions directory
+  event_log: ~/.life/events.jsonl  # Event log path
+```
 
 ## Configuration
 
