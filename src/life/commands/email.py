@@ -38,11 +38,11 @@ def _get_default_account(config: dict) -> Optional[str]:
 @app.command()
 def send(
     ctx: typer.Context,
-    to: str = typer.Argument(..., help="Recipient email address"),
-    subject: str = typer.Option(..., "--subject", "-s", help="Email subject"),
-    body: str = typer.Option(None, "--body", "-b", help="Email body text"),
-    template: str = typer.Option(None, "--template", "-t", help="Path to template file"),
-    account: str = typer.Option(None, "--account", "-a", help="authctl account name"),
+    to: str = typer.Argument(help="Recipient email address"),
+    subject: Optional[str] = typer.Option(None, "--subject", "-s", help="Email subject"),
+    body: Optional[str] = typer.Option(None, "--body", "-b", help="Email body text"),
+    template: Optional[str] = typer.Option(None, "--template", "-t", help="Path to template file"),
+    account: Optional[str] = typer.Option(None, "--account", "-a", help="authctl account name"),
 ):
     """Send email to one recipient.
 
@@ -65,6 +65,14 @@ def send(
     if not body and not template:
         typer.secho(
             "Error: Either --body or --template must be provided.",
+            fg=typer.colors.RED,
+        )
+        raise typer.Exit(1)
+
+    # Subject required when using body
+    if body and not subject:
+        typer.secho(
+            "Error: --subject is required when using --body.",
             fg=typer.colors.RED,
         )
         raise typer.Exit(1)
@@ -130,9 +138,9 @@ def send(
 @app.command()
 def batch(
     ctx: typer.Context,
-    template: str = typer.Argument(..., help="Path to template file"),
-    recipients: str = typer.Argument(..., help="Path to JSON recipients file"),
-    account: str = typer.Option(None, "--account", "-a", help="authctl account name"),
+    template: str = typer.Argument(help="Path to template file"),
+    recipients: str = typer.Argument(help="Path to JSON recipients file"),
+    account: Optional[str] = typer.Option(None, "--account", "-a", help="authctl account name"),
     email_field: str = typer.Option("email", "--email-field", help="Field name for email address"),
 ):
     """Send templated emails to multiple recipients.

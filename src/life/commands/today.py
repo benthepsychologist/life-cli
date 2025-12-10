@@ -132,7 +132,7 @@ def create_cmd(
 @app.command()
 def prompt(
     ctx: typer.Context,
-    question: str = typer.Argument(..., help="Question to ask LLM about today's note"),
+    question: str = typer.Argument(help="Question to ask LLM about today's note"),
     context_days: int = typer.Option(
         0, "--context", "-c", help="Include N previous daily notes as context"
     ),
