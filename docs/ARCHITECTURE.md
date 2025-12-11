@@ -320,6 +320,28 @@ Implementation would require:
 - **Caching** - Memoize processor calls based on `__io__` declarations
 - **Dry-run propagation** - Pass dry_run flag through entire job chain
 
+### User Content vs User Jobs
+
+- `~/.life/templates/*` - User content (email templates, notes). Verbs resolve these.
+- `~/.life/jobs/` - Reserved for future user-defined jobs (not yet implemented).
+
+The "no user jobs" rule means jobs only live in `src/life/jobs/*.yaml`.
+User templates are different - they're content files, not job definitions.
+
+### Email Template Resolution
+
+The `life email` commands support template name shorthand:
+
+| Input | Resolves To |
+|-------|-------------|
+| `reminder` | `~/.life/templates/email/reminder.md` (or `.html` if `.md` missing) |
+| `reminder.md` | `~/.life/templates/email/reminder.md` |
+| `reminder.html` | `~/.life/templates/email/reminder.html` |
+| `~/custom/path.md` | `~/custom/path.md` (expanded) |
+| `/abs/path.md` | `/abs/path.md` (unchanged) |
+
+Override the default directory with `email.templates_dir` in config.
+
 ---
 
 ## Summary

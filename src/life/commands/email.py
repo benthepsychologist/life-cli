@@ -35,6 +35,41 @@ def _get_default_account(config: dict) -> Optional[str]:
     return email_config.get("account")
 
 
+def _resolve_template_path(template: str, config: dict) -> str:
+    """Resolve template name to full path.
+
+    Resolution order:
+    1. If contains path separator or starts with ~, treat as file path (expand ~ and return)
+    2. Otherwise, look up in templates directory
+
+    Called by commands BEFORE run_job(). Processors only see resolved paths.
+    """
+    # Check if already a path (contains separator or starts with ~)
+    if "/" in template or "\\" in template or template.startswith("~"):
+        return str(Path(template).expanduser())
+
+    # Get templates directory from config or default
+    email_config = config.get("email", {})
+    templates_dir = email_config.get("templates_dir", "~/.life/templates/email")
+    templates_path = Path(templates_dir).expanduser()
+
+    # If template already has extension, use it directly
+    if template.endswith(".md") or template.endswith(".html"):
+        return str(templates_path / template)
+
+    # Try .md first, then .html (documented precedence)
+    md_path = templates_path / f"{template}.md"
+    if md_path.exists():
+        return str(md_path)
+
+    html_path = templates_path / f"{template}.html"
+    if html_path.exists():
+        return str(html_path)
+
+    # Default to .md path (processor will give clear error if missing)
+    return str(templates_path / f"{template}.md")
+
+
 @app.command()
 def send(
     ctx: typer.Context,
@@ -76,6 +111,10 @@ def send(
             fg=typer.colors.RED,
         )
         raise typer.Exit(1)
+
+    # Resolve template path (e.g., "reminder" → ~/.life/templates/email/reminder.md)
+    if template:
+        template = _resolve_template_path(template, config)
 
     if dry_run:
         typer.echo(f"[DRY RUN] Would send email to: {to}")
@@ -161,6 +200,9 @@ def batch(
             fg=typer.colors.RED,
         )
         raise typer.Exit(1)
+
+    # Resolve template path (e.g., "reminder" → ~/.life/templates/email/reminder.md)
+    template = _resolve_template_path(template, config)
 
     if dry_run:
         typer.echo("[DRY RUN] Would send batch emails")
