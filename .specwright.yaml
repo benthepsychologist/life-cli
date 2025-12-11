@@ -7,5 +7,5 @@ repo:
 user:
   default_owner: null
 current:
-  spec: .specwright/specs/email-templates-directory.md
-  aip: .specwright/aips/email-templates-directory.yaml
+  spec: .specwright/specs/cockpit-scripts-to-verbs.md
+  aip: .specwright/aips/cockpit-scripts-to-verbs.yaml
