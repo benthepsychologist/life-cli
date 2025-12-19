@@ -14,7 +14,7 @@ import typer
 
 from life.job_runner import InvalidJobNameError, run_job
 
-app = typer.Typer(help="Send emails via MS Graph")
+app = typer.Typer(help="Send emails via MS Graph or Gmail")
 
 
 def _get_jobs_dir() -> Path:
@@ -33,6 +33,24 @@ def _get_default_account(config: dict) -> Optional[str]:
     """Get default email account from config."""
     email_config = config.get("email", {})
     return email_config.get("account")
+
+
+def _get_provider_for_account(account: str, config: dict) -> str:
+    """Determine email provider for account from config.
+
+    Checks email.gmail_accounts and email.msgraph_accounts lists.
+    If the account is in both lists, gmail wins.
+    Defaults to msgraph for backwards compatibility.
+    """
+    email_config = config.get("email", {})
+    gmail_accounts = email_config.get("gmail_accounts", [])
+    msgraph_accounts = email_config.get("msgraph_accounts", [])
+    if account in gmail_accounts:
+        return "gmail"
+    if account in msgraph_accounts:
+        return "msgraph"
+    # Default to msgraph for backwards compat
+    return "msgraph"
 
 
 def _resolve_template_path(template: str, config: dict) -> str:
@@ -116,9 +134,12 @@ def send(
     if template:
         template = _resolve_template_path(template, config)
 
+    # Determine provider from config
+    provider = _get_provider_for_account(account, config)
+
     if dry_run:
         typer.echo(f"[DRY RUN] Would send email to: {to}")
-        typer.echo(f"[DRY RUN] Account: {account}")
+        typer.echo(f"[DRY RUN] Account: {account} (provider: {provider})")
         if template:
             typer.echo(f"[DRY RUN] Template: {template}")
         else:
@@ -137,6 +158,7 @@ def send(
                     "account": account,
                     "to": to,
                     "template": template,
+                    "provider": provider,
                 },
             )
         else:
@@ -151,6 +173,7 @@ def send(
                     "to": to,
                     "subject": subject,
                     "body": body,
+                    "provider": provider,
                 },
             )
 
@@ -204,11 +227,14 @@ def batch(
     # Resolve template path (e.g., "reminder" → ~/.life/templates/email/reminder.md)
     template = _resolve_template_path(template, config)
 
+    # Determine provider from config
+    provider = _get_provider_for_account(account, config)
+
     if dry_run:
         typer.echo("[DRY RUN] Would send batch emails")
         typer.echo(f"[DRY RUN] Template: {template}")
         typer.echo(f"[DRY RUN] Recipients: {recipients}")
-        typer.echo(f"[DRY RUN] Account: {account}")
+        typer.echo(f"[DRY RUN] Account: {account} (provider: {provider})")
 
     try:
         result = run_job(
@@ -221,6 +247,7 @@ def batch(
                 "template": template,
                 "recipients_file": recipients,
                 "dry_run": str(dry_run).lower(),
+                "provider": provider,
             },
         )
 

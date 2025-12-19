@@ -9,6 +9,7 @@ jobs:
           to: ["{to}"]
           subject: "{subject}"
           body: "{body}"
+          provider: "{provider}"
 
   email.send_templated:
     description: "Send templated email to one recipient"
@@ -19,6 +20,7 @@ jobs:
           account: "{account}"
           to: "{to}"
           template: "{template}"
+          provider: "{provider}"
 
   email.batch_send:
     description: "Send templated emails to list"
@@ -30,3 +32,4 @@ jobs:
           template: "{template}"
           recipients_file: "{recipients_file}"
           dry_run: "{dry_run}"
+          provider: "{provider}"
